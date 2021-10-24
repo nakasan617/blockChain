@@ -39,20 +39,20 @@ import java.util.Arrays;
 public class WorkB {
   
     public static String ByteArrayToString(byte[] ba){
-	StringBuilder hex = new StringBuilder(ba.length * 2);
-	for(int i=0; i < ba.length; i++){
-	    hex.append(String.format("%02X", ba[i]));
-	}
-	return hex.toString();
+        StringBuilder hex = new StringBuilder(ba.length * 2);
+        for(int i=0; i < ba.length; i++){
+            hex.append(String.format("%02X", ba[i]));
+        }
+        return hex.toString();
     }
 
     public static String randomAlphaNumeric(int count) {
-	StringBuilder builder = new StringBuilder();
-	while (count-- != 0) {
-	    int character = (int)(Math.random()*ALPHA_NUMERIC_STRING.length());
-	    builder.append(ALPHA_NUMERIC_STRING.charAt(character));
-	}
-	return builder.toString();
+        StringBuilder builder = new StringBuilder();
+        while (count-- != 0) {
+            int character = (int)(Math.random()*ALPHA_NUMERIC_STRING.length());
+            builder.append(ALPHA_NUMERIC_STRING.charAt(character));
+        }
+        return builder.toString();
     }
   
     private static final String ALPHA_NUMERIC_STRING = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
