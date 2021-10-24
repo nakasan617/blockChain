@@ -1,3 +1,7 @@
+import java.io.StringWriter;
+import java.io.StringReader;
+
+/* CDE: The encryption needed for signing the hash: */
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -5,6 +9,27 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.Signature;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import javax.crypto.Cipher;
+import java.security.spec.*;
+// Ah, heck:
+import java.security.*;
+
+// Produces a 64-bye string representing 256 bits of the hash output. 4 bits per character
+import java.security.MessageDigest; // To produce the SHA-256 hash.
+
+
+/* CDE Some other uitilities: */
+
+import java.util.Date;
+import java.util.Random;
+import java.util.UUID;
+import java.text.*;
+import java.util.Base64;
+import java.util.Arrays;
+
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -13,6 +38,45 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.FileReader;
 import java.io.Reader;
+
+/*
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.Security;
+import java.security.Signature;
+import java.security.NoSuchAlgorithmException;
+
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.*;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.Security;
+import java.security.Signature;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import javax.crypto.Cipher;
+import java.security.spec.*;
+// Ah, heck:
+import java.security.*;
+
+// Produces a 64-bye string representing 256 bits of the hash output. 4 bits per character
+import java.security.MessageDigest;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.FileReader;
+import java.io.Reader;
+*/
 
 class Key 
 {
@@ -39,8 +103,6 @@ class Key
 
         privateKey = keyPair.getPrivate();
         publicKey = keyPair.getPublic();    
-        System.out.println("public key: " + publicKey);
-        System.out.println("writing in a JSON format");
 
         WriteJSON(publicKey);
         ReadJSON();
@@ -48,6 +110,19 @@ class Key
     
     public void WriteJSON(PublicKey publicKey)
     {
+        System.out.println("public key: " + publicKey);
+        byte[] bytePubKey = publicKey.getEncoded();
+        String stringKey = Base64.getEncoder().encodeToString(bytePubKey);
+        System.out.println("Key in String form: " + stringKey);
+
+        Gson gson = new GsonBuilder().create();
+        try(FileWriter writer = new FileWriter("record.json"))
+        {
+            System.out.println("writing now");
+            gson.toJson(stringKey, writer);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void ReadJSON()
