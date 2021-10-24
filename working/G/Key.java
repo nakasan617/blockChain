@@ -60,19 +60,48 @@ class Key
     {
         System.out.println("Running now\n");
         KeyPair keyPair = generateKeyPair(999);
-
         privateKey = keyPair.getPrivate();
         publicKey = keyPair.getPublic();    
+        
+        String exampleStr = "this is a string";
+        byte[] digitalSignature = signData(exampleStr.getBytes(), privateKey);
+        boolean verified = verifySig(exampleStr.getBytes(), publicKey, digitalSignature);
+
+        System.out.println("Has the signature been verified: " + verified + "\n");
 
         WriteJSON(publicKey);
         String stringKey = ReadJSON();
+        PublicKey RestoredKey = RestoreKey(stringKey);
+        System.out.println("public key: " + publicKey);
+
+        verifySig(exampleStr.getBytes(), RestoredKey, digitalSignature);        
+
+        System.out.println("Has the signature been verified with the restored key: " + verified + "\n");
+    }
+
+    public static boolean verifySig(byte[] data, PublicKey key, byte[] sig) throws Exception {
+        Signature signer = Signature.getInstance("SHA1withRSA");
+        signer.initVerify(key);
+        signer.update(data);
+
+        return (signer.verify(sig));
+    }
+
+    public static byte[] signData(byte[] data, PrivateKey key) throws Exception {
+        Signature signer = Signature.getInstance("SHA1withRSA");
+        signer.initSign(key);
+        signer.update(data);
+        return (signer.sign());
+    }
+
+
+    PublicKey RestoreKey(String stringKey) throws Exception
+    {
         byte[] bytePubkey = Base64.getDecoder().decode(stringKey);
         X509EncodedKeySpec pubSpec = new X509EncodedKeySpec(bytePubkey);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         PublicKey RestoredKey = keyFactory.generatePublic(pubSpec);
-        System.out.println("public key: " + publicKey);
-
-        
+        return RestoredKey;
     }
     
     public void WriteJSON(PublicKey publicKey)
