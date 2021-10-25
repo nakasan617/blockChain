@@ -85,9 +85,9 @@ class publicKeyReceivingServer implements Runnable
         int q_len = 6;
         Socket sock;
         System.out.println("Public Key Receiving Server has started");
-        System.out.println("ready to listen at Port " + Ports.Port);
+        System.out.println("ready to listen at Port " + Ports.publicKeyPort);
         try {
-            ServerSocket servsock = new ServerSocket(Ports.Port, q_len);
+            ServerSocket servsock = new ServerSocket(Ports.publicKeyPort, q_len);
             while(true)
             {
                 sock = servsock.accept();
@@ -97,12 +97,28 @@ class publicKeyReceivingServer implements Runnable
     }
 }
 
-class publicKeySender implements Runnable
+class PublicKeySender
 {
+    static int numProcesses = 3;
+    static String serverName = "localhost";
+    int pnum;
+    PrivateKey privateKey;
+    PublicKey publicKey;
+
+    PublicKeySender(int _pnum) throws Exception
+    {
+       
+        KeyPair keyPair = generateKeyPair(999);
+        privateKey = keyPair.getPrivate();
+        publicKey = keyPair.getPublic();
+        new Thread(new publicKeyReceivingServer()).start();
+
+        pnum = _pnum;
+    }
 
     public void run()
     {
-        
+        sendPublicKey(publicKey);    
     }
 
     public void sendPublicKey(PublicKey publicKey)
@@ -304,8 +320,6 @@ class Block {
 
 public class BlockChain 
 {
-    static String serverName = "localhost";
-    static int numProcesses = 3;
     public static int pnum;
     int count; 
     Block tail;
@@ -328,6 +342,11 @@ public class BlockChain
         else pnum = 0;
 
         new Ports().setPorts();
+
+        try {
+            PublicKeySender publicKeySender = new PublicKeySender(pnum); 
+            publicKeySender.run();
+        } catch (Exception e) {}
 
         BlockChain bc = new BlockChain(argv);
         bc.run(argv);
