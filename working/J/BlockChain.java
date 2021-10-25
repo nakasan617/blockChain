@@ -77,11 +77,15 @@ class BlockChainReceivingWorker extends Thread
                 line = in.readLine();
             }
             sock.close();
-            System.out.println("stringBlockChain: " + stringBlockChain);
+            BlockChain blockChain = new Gson().fromJson(stringBlockChain, BlockChain.class); 
+            //System.out.println("stringBlockChain: " + blockChain);
+            //checkBlockChainReception(blockChain);             
+            blockChain.printBlockChain();
             
         } catch (IOException x) {x.printStackTrace();}
 
     }
+
 }
 
 class BlockChainReceivingServer implements Runnable 
@@ -213,7 +217,7 @@ class BlockRecord{
   public String RandomSeed; // Our guess. Ultimately our winning guess.
   public String WinningHash;
   UUID uuid; // Just to show how JSON marshals this binary data.
-  String TimeStampString;
+  public String TimeStampString;
 
   public BlockRecord(String ph)
   {
@@ -490,6 +494,20 @@ public class BlockChain
             curr = curr.next;
         }
         return 0;
+    }
+
+    public void printBlockChain()
+    {
+        Block curr = tail;
+        while(curr != null)
+        {
+            System.out.println("block: ");
+            System.out.println("previous hash -> " + curr.br.PreviousHash);
+            System.out.println("random seed -> " + curr.br.RandomSeed);
+            System.out.println("winning hash -> " + curr.br.WinningHash);
+            System.out.println("timestamp -> " + curr.br.TimeStampString);
+            curr = curr.next;
+        }
     }
 }
 
