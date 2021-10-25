@@ -20,87 +20,6 @@ import java.util.UUID;
 import java.util.Scanner;
 import java.util.Arrays;
 
-class WorkB {
-  
-    public WorkB ()
-    {
-        //System.out.println("in the constructor...");
-    }
-
-    public static String ByteArrayToString(byte[] ba){
-        StringBuilder hex = new StringBuilder(ba.length * 2);
-        for(int i=0; i < ba.length; i++){
-            hex.append(String.format("%02X", ba[i]));
-        }
-        return hex.toString();
-    }
-
-    public static String randomAlphaNumeric(int count) {
-        StringBuilder builder = new StringBuilder();
-        while (count-- != 0) {
-            int character = (int)(Math.random()*ALPHA_NUMERIC_STRING.length());
-            builder.append(ALPHA_NUMERIC_STRING.charAt(character));
-        }
-        return builder.toString();
-    }
-  
-    private static final String ALPHA_NUMERIC_STRING = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    //static String someText = "one two three";
-    static String randString;
-  
-    public static String doWork(String data) throws Exception 
-    {
-        String concatString = "";  // Random seed string concatenated with the existing data
-        String stringOut = ""; // Will contain the new SHA256 string converted to HEX and printable.
-
-        Scanner ourInput = new Scanner(System.in);
-        //System.out.print("Enter some blockdata: ");
-        //String stringIn = ourInput.nextLine();
-        System.out.println("data: " + data);
-        String stringIn = data; 
-
-        randString = randomAlphaNumeric(8);
-        //System.out.println("Our example random seed string is: " + randString + "\n");
-        //System.out.println("Concatenated with the \"data\": " + stringIn + randString + "\n");
-
-        //System.out.println("Number will be between 0000 (0) and FFFF (65535)\n");
-        int workNumber = 0;     // Number will be between 0000 (0) and FFFF (65535), here's proof:
-        workNumber = Integer.parseInt("0000",16); // Lowest hex value
-        //System.out.println("0x0000 = " + workNumber);
-
-        workNumber = Integer.parseInt("FFFF",16); // Highest hex value
-        //System.out.println("0xFFFF = " + workNumber + "\n");
-
-        try {
-
-            while(true){ // Limit how long we try for this example.
-                randString = randomAlphaNumeric(8); // Get a new random AlphaNumeric seed string
-                concatString = stringIn + randString; // Concatenate with our input string (which represents Blockdata)
-                MessageDigest MD = MessageDigest.getInstance("SHA-256");
-                byte[] bytesHash = MD.digest(concatString.getBytes("UTF-8")); // Get the hash value
-            
-                stringOut = ByteArrayToString(bytesHash); // Turn into a string of hex values, java 1.9 
-                //System.out.println("Hash is: " + stringOut); 
-
-                workNumber = Integer.parseInt(stringOut.substring(0,4),16); // Between 0000 (0) and FFFF (65535)
-                //System.out.println("First 16 bits in Hex and Decimal: " + stringOut.substring(0,4) +" and " + workNumber);
-
-                if (!(workNumber < 20000)){  
-                    //System.out.format("%d is not less than 20,000 so we did not solve the puzzle\n\n", workNumber);
-                }
-                if (workNumber < 20000){
-                    System.out.format("%d IS less than 20,000 so puzzle solved!\n", workNumber);
-                    System.out.println("The seed (puzzle answer) was: " + randString);
-                    return randString;
-                }
-                Thread.sleep(2000);
-            }
-        }catch(Exception ex) {ex.printStackTrace();}
-        return randString;
-
-    }
-}
-
 class BlockRecord{
   //String BlockID;
   public String data;
@@ -114,7 +33,7 @@ class BlockRecord{
   {
       data = "This is a data";
       PreviousHash = ph;
-      RandomSeed = "This is RandomSeed";
+      RandomSeed = null;
       WinningHash =  null;
 
       Date date = new Date();
@@ -152,29 +71,10 @@ class Block {
 
     public String createHV()
     {
-        WorkB work = new WorkB();
         try {
-            br.WinningHash = work.doWork(br.data);
+            doWork(br);
         } catch (Exception e) {}
         return br.WinningHash;
-        /*
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            String tmp = br.data + br.PreviousHash + br.RandomSeed;
-            md.update(tmp.getBytes());
-            byte byteData[] = md.digest();
-
-            StringBuffer sb = new StringBuffer();
-            for(int i = 0; i < byteData.length; i++)
-            {
-                sb.append(Integer.toString((byteData[i] & 0xff) + 0x100, 16).substring(1));
-            }
-            br.WinningHash = sb.toString();
-        } catch(NoSuchAlgorithmException x) {
-            System.out.println("no such algorithm exception caught");
-        }
-        return br.WinningHash;
-        */
     }
 
     public int verifyBlock()
@@ -199,7 +99,7 @@ class Block {
             return 2;
         }
         
-        if(checkStr.equals(br.WinningHash))
+        if(checkStr.equalsIgnoreCase(br.WinningHash))
         {
             System.out.println("a block verified");
             return 0;
@@ -213,7 +113,67 @@ class Block {
             return 1;
         }
     }
-    
+
+    public static String ByteArrayToString(byte[] ba){
+        StringBuilder hex = new StringBuilder(ba.length * 2);
+        for(int i=0; i < ba.length; i++){
+            hex.append(String.format("%02X", ba[i]));
+        }
+        return hex.toString();
+    }
+
+    public static String randomAlphaNumeric(int count) {
+        StringBuilder builder = new StringBuilder();
+        while (count-- != 0) {
+            int character = (int)(Math.random()*ALPHA_NUMERIC_STRING.length());
+            builder.append(ALPHA_NUMERIC_STRING.charAt(character));
+        }
+        return builder.toString();
+    }
+ 
+    private static final String ALPHA_NUMERIC_STRING = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+     
+    public static void doWork(BlockRecord br) throws Exception 
+    {
+        String randString;
+        String concatString = "";  
+        String stringOut = ""; 
+
+        //Scanner ourInput = new Scanner(System.in);
+        System.out.println("data: " + br.data);
+        String stringIn = br.data + br.PreviousHash; 
+
+        randString = randomAlphaNumeric(8);
+        int workNumber = 0;     
+        workNumber = Integer.parseInt("0000",16); 
+        workNumber = Integer.parseInt("FFFF",16); 
+
+        try {
+
+            while(true){ // Limit how long we try for this example.
+                randString = randomAlphaNumeric(8); // Get a new random AlphaNumeric seed string
+                concatString = stringIn + randString; // Concatenate with our input string (which represents Blockdata)
+                MessageDigest MD = MessageDigest.getInstance("SHA-256");
+                byte[] bytesHash = MD.digest(concatString.getBytes("UTF-8")); // Get the hash value
+            
+                stringOut = ByteArrayToString(bytesHash); // Turn into a string of hex values, java 1.9 
+
+                workNumber = Integer.parseInt(stringOut.substring(0,4),16); // Between 0000 (0) and FFFF (65535)
+
+                if (workNumber < 20000){
+                    System.out.format("%d IS less than 20,000 so puzzle solved!\n", workNumber);
+                    System.out.println("The seed (puzzle answer) was: " + randString);
+                    br.RandomSeed = randString;
+                    br.WinningHash = stringOut;
+                    break;
+                    //return randString;
+                }
+                Thread.sleep(2000);
+            }
+        }catch(Exception ex) {ex.printStackTrace();}
+
+    }
+   
 }
 
 public class BlockChain 
@@ -273,7 +233,7 @@ public class BlockChain
             //System.out.println(prevHash);
         }
         //System.out.println(count);
-        //verifyAll();
+        verifyAll();
     }
 
     public void appendGenesis(Block genesis)
