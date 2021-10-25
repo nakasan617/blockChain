@@ -26,10 +26,8 @@ import java.util.Base64;
 import java.io.StringWriter;
 import java.io.StringReader;
 
-/*
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-*/
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -59,6 +57,52 @@ class Ports
     }
 }
 
+class BlockChainReceivingWorker extends Thread 
+{
+    Socket sock;
+    BlockChainReceivingWorker (Socket s) {sock = s;}
+
+    public void run() 
+    {
+        String stringBlockChain = "";
+        String line;
+        try 
+        {
+            BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+            //String pnum = in.readLine();
+            line = in.readLine();
+            while (line != null)
+            {
+                stringBlockChain += line + "\n";
+                line = in.readLine();
+            }
+            sock.close();
+            System.out.println("stringBlockChain: " + stringBlockChain);
+            
+        } catch (IOException x) {x.printStackTrace();}
+
+    }
+}
+
+class BlockChainReceivingServer implements Runnable 
+{
+    public void run() 
+    {
+        int q_len = 6;
+        Socket sock;
+        System.out.println("BlockChain Receiving Server has started");
+        System.out.println("ready to listen at Port " + Ports.blockChainPort);
+        try {
+            ServerSocket servsock = new ServerSocket(Ports.blockChainPort, q_len);
+            while(true)
+            {
+                sock = servsock.accept();
+                new BlockChainReceivingWorker (sock).start();
+            }
+        } catch (IOException ioe) {System.out.println(ioe);}
+    }
+}
+
 class publicKeyReceivingWorker extends Thread 
 {
     Socket sock;
@@ -72,7 +116,7 @@ class publicKeyReceivingWorker extends Thread
             String pnum = in.readLine();
             String StringKey = in.readLine();
             sock.close();
-            //System.out.println("from Process " + pnum + ":\n" + StringKey);
+            System.out.println("from Process " + pnum + ":\n" + StringKey);
         } catch (IOException x) {x.printStackTrace();}
 
     }
@@ -129,7 +173,7 @@ class PublicKeySender
         byte[] bytePubKey = publicKey.getEncoded();
         String stringKey = Base64.getEncoder().encodeToString(bytePubKey);
 
-        try{Thread.sleep(10000);} catch (Exception x) {}
+        try{Thread.sleep(4000);} catch (Exception x) {}
 
         for(int i = 0; i < numProcesses; i++)
         {
@@ -310,7 +354,7 @@ class Block {
                     break;
                     //return randString;
                 }
-                Thread.sleep(2000);
+                //Thread.sleep(2000);
             }
         }catch(Exception ex) {ex.printStackTrace();}
 
@@ -321,6 +365,8 @@ class Block {
 public class BlockChain 
 {
     public static int pnum;
+    static int numProcesses = 3;
+    static String serverName = "localhost";
     int count; 
     Block tail;
     Block head;
@@ -348,6 +394,8 @@ public class BlockChain
             publicKeySender.run();
         } catch (Exception e) {}
 
+        
+        new Thread(new BlockChainReceivingServer()).start();
         BlockChain bc = new BlockChain(argv);
         bc.run(argv);
     }
@@ -357,21 +405,19 @@ public class BlockChain
         count = 0;
         tail = null;
         head = null;
-        System.out.println("In the constructor...");
     }
 
     public void run(String argv[])
     {
-        System.out.println("Running now");
-
         try 
         {
-            DemonstrateUtilities(argv);
+            createBlockChain();
+            sendBlockChain();
         } 
         catch (Exception x){};
     }
 
-    public void DemonstrateUtilities(String argv[]) throws Exception 
+    public void createBlockChain() throws Exception 
     {
         String prevHash = "";
         Block genesis = new Block(prevHash);
@@ -388,6 +434,32 @@ public class BlockChain
         }
         //System.out.println(count);
         verifyAll();
+    }
+    
+    public void sendBlockChain() throws Exception 
+    {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        String json = gson.toJson(this);
+        
+        Socket sock;
+        PrintStream toServer;
+        
+        Thread.sleep(5000);
+
+        for(int i = 0; i < numProcesses; i++)
+        {
+            try {
+                sock = new Socket(serverName, Ports.blockChainPortBase + i);
+                toServer = new PrintStream(sock.getOutputStream());
+                toServer.println(json);
+                toServer.flush();
+                sock.close();
+               
+            } catch (Exception x) {
+                System.out.println("block chain sending failed to Process " + i);
+            }
+        }
+        //System.out.println(json);
     }
 
     public void appendGenesis(Block genesis)
