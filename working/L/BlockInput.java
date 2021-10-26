@@ -57,9 +57,9 @@ class Ports
 
     public void setPorts()
     {
-        unverifiedBlockPort = unverifiedBlockPortBase + BlockChain.pnum;
-        publicKeyPort = publicKeyPortBase + BlockChain.pnum; 
-        blockChainPort = blockChainPortBase + BlockChain.pnum;
+        unverifiedBlockPort = unverifiedBlockPortBase + BlockInput.pnum;
+        publicKeyPort = publicKeyPortBase + BlockInput.pnum; 
+        blockChainPort = blockChainPortBase + BlockInput.pnum;
     }
 }
 
