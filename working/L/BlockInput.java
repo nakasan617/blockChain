@@ -45,6 +45,8 @@ import java.util.concurrent.*;
 
 class Ports 
 {
+    public static int numProcesses = 3;
+    public static String serverName = "localhost";
     public static int unverifiedBlockPortBase = 4710;
     public static int publicKeyPortBase = 4820;
     public static int blockChainPortBase = 4930;
@@ -58,6 +60,55 @@ class Ports
         unverifiedBlockPort = unverifiedBlockPortBase + BlockChain.pnum;
         publicKeyPort = publicKeyPortBase + BlockChain.pnum; 
         blockChainPort = blockChainPortBase + BlockChain.pnum;
+    }
+}
+
+class UnverifiedBlockReceivingWorker extends Thread 
+{
+    Socket sock;
+    UnverifiedBlockReceivingWorker (Socket s) {sock = s;}
+
+    public void run() 
+    {
+        String stringBlock = "";
+        String line;
+        try 
+        {
+            BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+            //String pnum = in.readLine();
+            line = in.readLine();
+            while (line != null)
+            {
+                stringBlock += line + "\n";
+                line = in.readLine();
+            }
+            sock.close();
+            Block block = new Gson().fromJson(stringBlock, Block.class); 
+            System.out.println(stringBlock);
+            //System.out.println("stringBlockChain: " + blockChain);
+            //checkBlockChainReception(blockChain);             
+        } catch (IOException x) {x.printStackTrace();}
+
+    }
+
+}
+
+class UnverifiedBlockReceivingServer implements Runnable 
+{
+    public void run() 
+    {
+        int q_len = 6;
+        Socket sock;
+        System.out.println("unverifiedBlock Receiving Server has started");
+        System.out.println("ready to listen at Port " + Ports.unverifiedBlockPort);
+        try {
+            ServerSocket servsock = new ServerSocket(Ports.unverifiedBlockPort, q_len);
+            while(true)
+            {
+                sock = servsock.accept();
+                new UnverifiedBlockReceivingWorker (sock).start();
+            }
+        } catch (IOException ioe) {System.out.println(ioe);}
     }
 }
 
@@ -209,8 +260,6 @@ class PublicKeySender
         keyGenerator.initialize(1024, rng);
         return (keyGenerator.generateKeyPair());
     }
-   
-
 }
 
 
@@ -236,6 +285,20 @@ class BlockRecord{
       //System.out.println("uuid: " + uuid.toString() + "\nTime Stamp: " + TimeStampString);
   }
 
+  public BlockRecord(String _data, String ph)
+  {
+      data = _data;
+      PreviousHash = ph;
+      RandomSeed = null;
+      WinningHash = null;
+
+      Date date = new Date();
+      TimeStampString = String.format("%1$s %2$tF.%2$tT", "", date);
+      uuid = UUID.randomUUID();
+      System.out.println("data: " + data);
+  }
+
+
   //public String getBlockID() {return BlockID;}
   //public void setBlockID(String BID){this.BlockID = BID;}
 
@@ -260,6 +323,12 @@ class Block {
     public Block(String ph)
     {
         br = new BlockRecord(ph);
+        next = null;
+    }
+
+    public Block(String data, String ph)
+    {
+        br = new BlockRecord(data, ph);
         next = null;
     }
 
@@ -542,7 +611,6 @@ public class BlockInput {
 
         new Ports().setPorts();
 
-
         try {
             PublicKeySender publicKeySender = new PublicKeySender(pnum); 
             publicKeySender.run();
@@ -560,6 +628,7 @@ public class BlockInput {
 
         System.out.println("Using input file: " + FILENAME);
 
+        new Thread(new UnverifiedBlockReceivingServer()).start();
         Block curr;
         try {
             String InputLineStr;
@@ -567,7 +636,36 @@ public class BlockInput {
             while((InputLineStr = br.readLine()) != null)
             {
                 curr = new Block(InputLineStr, "");
+                sendUnverifiedBlock(curr);
             }
         } catch (Exception e) {e.printStackTrace();}
+        
     }
+
+    public void sendUnverifiedBlock(Block block) throws Exception 
+    {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        String json = gson.toJson(block);
+        
+        Socket sock;
+        PrintStream toServer;
+        
+        Thread.sleep(5000);
+
+        for(int i = 0; i < Ports.numProcesses; i++)
+        {
+            try {
+                sock = new Socket(Ports.serverName, Ports.unverifiedBlockPortBase + i);
+                toServer = new PrintStream(sock.getOutputStream());
+                toServer.println(json);
+                toServer.flush();
+                sock.close();
+               
+            } catch (Exception x) {
+                System.out.println("block chain sending failed to Process " + i);
+            }
+        }
+        //System.out.println(json);
+    }
+
 }
