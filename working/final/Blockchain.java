@@ -49,6 +49,8 @@ class Ports
     public static int unverifiedBlockPortBase = 4710;
     public static int publicKeyPortBase = 4820;
     public static int blockChainPortBase = 4930;
+    public static int blockChainUpdated = 0;
+    public static boolean applicationReady = false;
 
     public static int unverifiedBlockPort;
     public static int publicKeyPort;
@@ -157,8 +159,31 @@ class BlockVerifier implements Runnable
                 System.out.println("timestamp -> " + curr.br.TimeStampString);
                 */
 
+                if(Ports.blockChainUpdated == 0)
+                {
+                    Ports.blockChain.appendBlock(curr);
+                    try {
+                        Ports.blockChain.sendBlockChain();
+                    } catch (Exception e) {
+                        System.out.println("send blockChain failed");
+                    }
+                }
+                else if(Ports.blockChainUpdated == 1)
+                {
+                }
+                else if(Ports.blockChainUpdated > 1)
+                {
+                    while(Ports.blockChainUpdated > 1)
+                    {
+                        Ports.blockChainUpdated--;
+                        Ports.ourPriorityQueue.poll();
+                    }
+                }
+                else
+                {
+                    System.out.println("you should not come here");
+                }
                 // now I need to concatenate to a blockChain
-                Ports.blockChain.appendBlock(curr);
                 try {
                     Ports.blockChain.sendBlockChain();
                 } catch (Exception e) {
@@ -255,7 +280,8 @@ class BlockChainReceivingWorker extends Thread
                 Ports.blockChain = blockChain;
                 Ports.blockChain.updateHead();
                 System.out.println("blockChain updated:");
-                Ports.blockChain.printBlockChain();
+                Ports.blockChainUpdated++;
+                //Ports.blockChain.printBlockChain();
             }
             //System.out.println("stringBlockChain: " + blockChain);
             //checkBlockChainReception(blockChain);             
@@ -299,7 +325,11 @@ class publicKeyReceivingWorker extends Thread
             String pnum = in.readLine();
             String StringKey = in.readLine();
             sock.close();
-            //System.out.println("from Process " + pnum + ":\n" + StringKey);
+            if (pnum.equals("2"))
+            {
+                Ports.applicationReady = true;
+            }
+            System.out.println("from Process " + pnum + ":\n" + StringKey);
         } catch (IOException x) {x.printStackTrace();}
 
     }
@@ -371,7 +401,7 @@ class PublicKeySender
                 toServer.flush();
                 sock.close();
             } catch (Exception x) {
-                System.out.println("did not work when trying to send to Process " + i);
+                System.out.println("failed to send public key from Process " + i);
             }
         }
     }
@@ -396,6 +426,7 @@ class BlockRecord{
   UUID uuid; // Just to show how JSON marshals this binary data.
   public String TimeStampString;
 
+  /*
   public BlockRecord(String ph)
   {
       data = "This is a data";
@@ -408,6 +439,7 @@ class BlockRecord{
       uuid = UUID.randomUUID();
       //System.out.println("uuid: " + uuid.toString() + "\nTime Stamp: " + TimeStampString);
   }
+  */
 
   public BlockRecord(String _data, String ph)
   {
@@ -444,11 +476,13 @@ class Block {
     BlockRecord br;
     public Block next;
 
+    /*
     public Block(String ph)
     {
         br = new BlockRecord(ph);
         next = null;
     }
+    */
 
     public Block(String data, String ph)
     {
@@ -542,7 +576,7 @@ class Block {
 
         try {
 
-            while(true){ // Limit how long we try for this example.
+            while(Ports.blockChainUpdated == 0){ // Limit how long we try for this example.
                 randString = randomAlphaNumeric(8); // Get a new random AlphaNumeric seed string
                 concatString = stringIn + randString; // Concatenate with our input string (which represents Blockdata)
                 MessageDigest MD = MessageDigest.getInstance("SHA-256");
@@ -560,7 +594,7 @@ class Block {
                     break;
                     //return randString;
                 }
-                Thread.sleep(2000);
+                Thread.sleep(1000);
             }
         }catch(Exception ex) {ex.printStackTrace();}
 
@@ -592,10 +626,14 @@ class BlockChain
 
     public void run(String argv[])
     {
+        // I don't think you need to do this 
         try 
         {
-            createBlockChain();
-            sendBlockChain();
+            if(Blockchain.pnum == 0)
+            {
+                createBlockChain();
+                sendBlockChain();
+            }
         } 
         catch (Exception x){};
     }
@@ -613,11 +651,12 @@ class BlockChain
     public void createBlockChain() throws Exception 
     {
         String prevHash = "";
-        Block genesis = new Block(prevHash);
+        Block genesis = new Block("genesis block", prevHash);
         prevHash = genesis.createHV();
         appendBlock(genesis);
 
-        Block newBlock;
+        //Block newBlock = new Block(prevHash);
+        /* 
         for(int i = 1; i < 4; i++)
         {
             newBlock = new Block(prevHash);
@@ -625,6 +664,7 @@ class BlockChain
             appendBlock(newBlock);
             //System.out.println(prevHash);
         }
+        */
         //System.out.println(count);
         //verifyAll();
     }
@@ -690,14 +730,12 @@ class BlockChain
         Block curr = tail;
         while(curr != null)
         {
-            /*
             System.out.println("block: ");
             System.out.println("data -> " + curr.br.data);
             System.out.println("previous hash -> " + curr.br.PreviousHash);
             System.out.println("random seed -> " + curr.br.RandomSeed);
             System.out.println("winning hash -> " + curr.br.WinningHash);
             System.out.println("timestamp -> " + curr.br.TimeStampString);
-            */
             curr = curr.next;
         }
     }
@@ -745,12 +783,21 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
             System.out.println("PROCESS TWO");
         }
 
+        new Thread(new UnverifiedBlockReceivingServer()).start();
+        new Thread(new BlockChainReceivingServer()).start();
         try {
             PublicKeySender publicKeySender = new PublicKeySender(pnum); 
+            if(pnum != 2)
+            {
+                while(Ports.applicationReady == false)
+                {
+                    System.out.println("not ready yet, going to sleep");
+                    Thread.sleep(3000);
+                }
+            }
             publicKeySender.run();
         } catch (Exception e) {}
         
-        new Thread(new BlockChainReceivingServer()).start();
         Ports.blockChain = new BlockChain(argv);
         Ports.blockChain.run(argv);
         
@@ -763,7 +810,6 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
         //System.out.println("Using input file: " + FILENAME);
 
         //Queue<Block> ourPriorityQueue = new PriorityQueue<>(12, BlockTSComparator);
-        new Thread(new UnverifiedBlockReceivingServer()).start();
         new Thread(new BlockVerifier()).start();
 
         //LinkedList<Block> recordList = new LinkedList<Block>();
@@ -808,7 +854,7 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
                 sock.close();
                
             } catch (Exception x) {
-                System.out.println("block chain sending failed to Process " + i);
+                System.out.println("unverifiedBlock sending failed to Process " + i);
             }
         }
     }
