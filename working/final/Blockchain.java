@@ -77,6 +77,7 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
 
+// this is a class for ports and something I wanted to access from outside the class such as Block Chain and public/private keys
 class Ports 
 {
     public static int numProcesses = 3;
@@ -95,12 +96,13 @@ class Ports
     public static PrivateKey privateKey;
     public static PublicKey [] publicKeys = new PublicKey[3];
 
+    // this comparator make the Queue priority queue according to its timestamp
     public static Comparator<Block> BlockTSComparator = new Comparator<Block>()
     {
         @Override
         public int compare(Block b1, Block b2)
         {
-            
+            // basically does the c function strcmp except for some cases where strings are null, in which cases the result is explicitly stated 
             String s1 = b1.getBlockRecord().TimeStampString;
             String s2 = b2.getBlockRecord().TimeStampString;
             if(s1 == s2) {return 0;}
@@ -110,8 +112,10 @@ class Ports
         }
     };
 
+    // this is the priority queue
     public static Queue<Block> ourPriorityQueue = new PriorityQueue<>(13, BlockTSComparator);
     
+    // this function sets the port number according to the input argument it gets
     public void setPorts()
     {
         unverifiedBlockPort = unverifiedBlockPortBase + Blockchain.pnum;
@@ -120,6 +124,7 @@ class Ports
     }
 }
 
+// this worker receives unverified blocks
 class UnverifiedBlockReceivingWorker extends Thread 
 {
     Socket sock;
@@ -134,6 +139,7 @@ class UnverifiedBlockReceivingWorker extends Thread
         {
             BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
             String pnum = in.readLine();
+            // This just takes in the lines until the line is no longer sent and concatenates
             line = in.readLine();
             while (line != null)
             {
@@ -142,31 +148,40 @@ class UnverifiedBlockReceivingWorker extends Thread
             }
             sock.close();
             Block block = new Gson().fromJson(stringBlock, Block.class); 
-            // verifying the block here 
+
+            // IMPORTANT: THIS IS THE PART WHERE THE UNVERIFIED BLOCKS VERIFIES THE AUTHOR 
+
+            // here it waits until the public key is given to the process 
             while(Ports.publicKeys[Blockchain.pnum] == null)
             {
                 System.out.println("publicKeys[" + Blockchain.pnum + "] is null: sleeping");
                 try {Thread.sleep(1000);} catch (Exception e) {}
             }
+            
+            // and then it verifies the signature 
+            // each process signes the string "Process" + process number
             try {
                 boolean rv = verifySig(pnum.getBytes(), Ports.publicKeys[Blockchain.pnum], block.br.Signature);
+                
                 if(rv == true)
                 {
+                    // when it is verified add it to the priority queue
                     priorityQueue.add(block);
                 }
                 else 
                 {
                     System.out.println("verification for the unverified block failed");
                 } 
+                
+                // makes it null so that you won't have to write it as a JSON file later
                 block.br.Signature = null;
+
             } catch (Exception x) {x.printStackTrace();}
-            //System.out.println("received: " + stringBlock);
-            //System.out.println("stringBlockChain: " + blockChain);
-            //checkBlockChainReception(blockChain);             
         } catch (IOException x) {x.printStackTrace();}
 
     }
 
+    // this function verifies the signature, returns true when verified, otherwise false
     public static boolean verifySig(byte[] data, PublicKey key, byte[] sig) throws Exception
     {
         Signature signer = Signature.getInstance("SHA1withRSA");
@@ -177,6 +192,8 @@ class UnverifiedBlockReceivingWorker extends Thread
 
 }
 
+// just like other servers, creates the socket and waits
+// when connection is requested from the other end, accecpts and takes in strings and converts it to necessary information (unnecessary block in this case)
 class UnverifiedBlockReceivingServer implements Runnable 
 {
     public void run() 
@@ -196,6 +213,7 @@ class UnverifiedBlockReceivingServer implements Runnable
     }
 }
 
+// this is the part where unverified blocks are verified
 class BlockVerifier implements Runnable
 {
     public void run()
@@ -205,23 +223,26 @@ class BlockVerifier implements Runnable
         {
             try { Thread.sleep(1000); } catch (Exception e) {System.out.println("sleep failed");}
             Block curr;
+            // so I was thinking is this a good idea to pull instantly when it was pushed, and it is fine because when the block is pushed so late, it should have a timestamp that is so late too, unless the network issue had screwed us up.
             if(Ports.ourPriorityQueue.isEmpty() == false) // check if empty
             {
                 // pop and write the data here
                 curr = Ports.ourPriorityQueue.poll();
+                // if it is already included in the block chain skip the entire routine and go get the next one
                 if (isIncluded(curr.br) == true)
                 {
-                    //assert Ports.blockChainUpdated > 0;
-                    //Ports.blockChainUpdated--;
                     System.out.println("already included in blockChain: " + curr.br.data);
                     continue;
                 }
-                //System.out.println("block received: ");
+
+                // it assumes that genesis block has to be there before referring to the blcokChain, so waiting for that
                 while(Ports.blockChain.getHead() == null)
                 {
                     System.out.println("blockChain head is stil null, so waiting");
                     try{ Thread.sleep(1000); } catch (Exception e) {System.out.println("sleep failed");}
                 }
+
+                // does the work and gets the hash
                 curr.br.PreviousHash = Ports.blockChain.getHead().br.WinningHash;
 
                 try {
@@ -230,6 +251,8 @@ class BlockVerifier implements Runnable
                     System.out.println("exception caught in dowork");
                 }
 
+                // if the block is not yet included in the block chain add it to the blockchain and send it 
+                // there is still a possiblity of collision here but this is something extensive so we will do it afterwards
                 if(isIncluded(curr.br) == false)
                 {
                     Ports.blockChain.appendBlock(curr);
@@ -248,14 +271,13 @@ class BlockVerifier implements Runnable
         }
     }
 
+    // return true if the BlockRecord is included, otherwise, returns false
     public static boolean isIncluded(BlockRecord br) 
     {
         Block curr = Ports.blockChain.getTail();
-        //System.out.println("block: " + block.br.getBlockID() + block.br.data);
         while(curr != null)
         {
-            //System.out.println("curr: " + curr.br.getBlockID());
-            if(br.getBlockID().equals(curr.br.getBlockID()))
+            if(br.BlockID.equals(curr.br.BlockID))
             {
                 return true;
             }
@@ -264,6 +286,7 @@ class BlockVerifier implements Runnable
         return false;
     }
     
+    // the 3 functions below are just copy from the code professor Elliott gave us
     public static String ByteArrayToString(byte[] ba){
         StringBuilder hex = new StringBuilder(ba.length * 2);
         for(int i=0; i < ba.length; i++){
@@ -289,8 +312,6 @@ class BlockVerifier implements Runnable
         String concatString = "";  
         String stringOut = ""; 
 
-        //Scanner ourInput = new Scanner(System.in);
-        //System.out.println("data: " + br.data);
         String stringIn = br.data + br.PreviousHash; 
 
         randString = randomAlphaNumeric(8);
@@ -300,7 +321,6 @@ class BlockVerifier implements Runnable
 
         try {
 
-            //while(Ports.blockChainUpdated == 0){ // Limit how long we try for this example.
             while(isIncluded(br) == false) {
 
                 randString = randomAlphaNumeric(8); 
@@ -328,6 +348,7 @@ class BlockVerifier implements Runnable
     }
 }
 
+// it updates the blockChain
 class BlockChainReceivingWorker extends Thread 
 {
     Socket sock;
@@ -340,7 +361,6 @@ class BlockChainReceivingWorker extends Thread
         try 
         {
             BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-            //String pnum = in.readLine();
             line = in.readLine();
             while (line != null)
             {
@@ -348,20 +368,24 @@ class BlockChainReceivingWorker extends Thread
                 line = in.readLine();
             }
             sock.close();
+            // this line changes the JSON string to blockchain
             BlockChain blockChain = new Gson().fromJson(stringBlockChain, BlockChain.class); 
+
             //System.out.println("blockChain.count :" + blockChain.getCount() + " vs. Ports.blockChain.count: " + Ports.blockChain.getCount());
+            
+            // it only updates when the blockChain has more length than the previous one
             if(blockChain.getCount() > Ports.blockChain.getCount())
             {
                 Ports.blockChain = blockChain;
+                // getting the head of the BlockChain updated because it becomes a copy from a pointer
                 Ports.blockChain.updateHead();
 
             }
-            //System.out.println("stringBlockChain: " + blockChain);
-            //checkBlockChainReception(blockChain);             
-            //blockChain.printBlockChain();
+
+            // if the length is 13 and have not been written, the process 0 will write the BlockChain
             if(Ports.blockChain.getCount() == 13 && Ports.JSONWritten == false && Blockchain.pnum == 0)
             {
-                Ports.JSONWritten = true; // you need a test and set here but you can just write it twice I guess
+                Ports.JSONWritten = true; 
                 System.out.println("writing BlockchainLedgerSample.json");
                 WriteJSON(Ports.blockChain);
 
@@ -371,6 +395,7 @@ class BlockChainReceivingWorker extends Thread
 
     }
 
+    // this function writes out the JSON format
     public void WriteJSON(BlockChain blockChain)
     {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -383,6 +408,7 @@ class BlockChainReceivingWorker extends Thread
 
 }
 
+// same as other receiving server
 class BlockChainReceivingServer implements Runnable 
 {
     public void run() 
@@ -403,6 +429,7 @@ class BlockChainReceivingServer implements Runnable
     }
 }
 
+// this receives public key in string from and changes it back to public key and keep it as a global variable
 class publicKeyReceivingWorker extends Thread 
 {
     Socket sock;
@@ -418,9 +445,9 @@ class publicKeyReceivingWorker extends Thread
             sock.close();
             if (pnum.equals("2"))
             {
+                // this part notifies the other process that the process 2 is ready
                 Ports.applicationReady = true;
             }
-            //System.out.println("from Process " + pnum + ":\n" + StringKey);
             try {
                 Ports.publicKeys[Integer.parseInt(pnum)] = RestoreKey(StringKey);
             } catch (Exception x) {x.printStackTrace();}
@@ -428,6 +455,7 @@ class publicKeyReceivingWorker extends Thread
 
     }
 
+    // this is a copy of a function in Professor's code
     PublicKey RestoreKey(String stringKey) throws Exception
     {
         byte[] bytePubkey = Base64.getDecoder().decode(stringKey);
@@ -438,6 +466,7 @@ class publicKeyReceivingWorker extends Thread
     }
 }
 
+// it's the same conventional server except it exits when it gets 3 keys
 class publicKeyReceivingServer implements Runnable 
 {
     int keyCount = 0;
@@ -460,16 +489,16 @@ class publicKeyReceivingServer implements Runnable
     }
 }
 
+// this class multicasts the public keys to other processes
 class PublicKeySender
 {
     int pnum;
-    PrivateKey privateKey;
     PublicKey publicKey;
 
     PublicKeySender(int _pnum) throws Exception
     {
        
-        KeyPair keyPair = generateKeyPair(999);
+        KeyPair keyPair = generateKeyPair(999); // creates the key pair here
         Ports.privateKey = keyPair.getPrivate();
         publicKey = keyPair.getPublic();
 
@@ -481,15 +510,17 @@ class PublicKeySender
         sendPublicKey(publicKey);    
     }
 
+    // just sends the public key out after converting it into a string (and Base64 conversion)
     public void sendPublicKey(PublicKey publicKey)
     {
         Socket sock;
         PrintStream toServer;
 
+
         byte[] bytePubKey = publicKey.getEncoded();
         String stringKey = Base64.getEncoder().encodeToString(bytePubKey);
 
-        try{Thread.sleep(4000);} catch (Exception x) {}
+        //try{Thread.sleep(4000);} catch (Exception x) {}
 
         for(int i = 0; i < Ports.numProcesses; i++)
         {
@@ -497,9 +528,10 @@ class PublicKeySender
             try {
                 sock = new Socket(Ports.serverName, Ports.publicKeyPortBase + i); 
                 toServer = new PrintStream(sock.getOutputStream());
-                //toServer.println("Hello multicast message from Process " + pnum);
+                // sends the process number first
                 toServer.println(pnum);
                 toServer.flush();
+                // then sends the key next
                 toServer.println(stringKey);
                 toServer.flush();
                 sock.close();
@@ -509,6 +541,7 @@ class PublicKeySender
         }
     }
 
+    // this is just a copy of function Professor Elliott made 
     public static KeyPair generateKeyPair(long seed) throws Exception 
     {
         KeyPairGenerator keyGenerator = KeyPairGenerator.getInstance("RSA");
@@ -520,15 +553,20 @@ class PublicKeySender
 }
 
 
-class BlockRecord{
-  String BlockID;
+// Notice that I didn't parse the data and just made the data into "data"
+// I didn't see the requirements to parse it and was too lazy so I made it this way
+// It's more robust this way too
+// I didn't see the point in making member private if one is going to create all the methods of get and set, so I made the members public to make it easier to read 
+class BlockRecord
+{
+  public String BlockID;
   public String data;
   public String PreviousHash; 
   public String RandomSeed; 
   public String WinningHash;
   UUID uuid; // Just to show how JSON marshals this binary data.
   public String TimeStampString;
-  public byte[] Signature;
+  public byte[] Signature; // this is signature but will be set to null when written as JSON for the aethestic reasons
 
   public BlockRecord(String _data, String ph)
   {
@@ -541,28 +579,15 @@ class BlockRecord{
       TimeStampString = String.format("%1$s %2$tF.%2$tT", "", date);
       uuid = UUID.randomUUID();
       BlockID = new String(uuid.toString());
-      //System.out.println("data: " + data);
   }
 
-
-  public String getBlockID() {return BlockID;}
-  public void setBlockID(String BID){this.BlockID = BID;}
-
-  public String getPreviousHash() {return this.PreviousHash;}
-  public void setPreviousHash (String PH){this.PreviousHash = PH;}
-  
-  public UUID getUUID() {return uuid;} 
-  public void setUUID (UUID ud){this.uuid = ud;}
-
-  public String getRandomSeed() {return RandomSeed;}
-  public void setRandomSeed (String RS){this.RandomSeed = RS;}
-  
-  public String getWinningHash() {return WinningHash;}
-  public void setWinningHash (String WH){this.WinningHash = WH;}
-  
 }
 
-class Block {
+// consider this class as a node of a linked list
+// it does work for genesis block
+// I can get rid of the duplicate codes later
+class Block 
+{
     BlockRecord br;
     public Block next;
 
@@ -656,7 +681,6 @@ class Block {
 
         try {
 
-            //while(Ports.blockChainUpdated == 0){ 
             while(true) {
                 randString = randomAlphaNumeric(8); 
                 concatString = stringIn + randString; 
@@ -674,7 +698,9 @@ class Block {
                     br.WinningHash = stringOut;
                     break;
                 }
+                // there is no sleep statement here because it is only used for genesis block only the process 0 solves
             }
+            
         }catch(Exception ex) {ex.printStackTrace();}
 
     }
@@ -707,9 +733,9 @@ class BlockChain
         return tail;
     }
 
+    // only the process 0 does this 
     public void run(String argv[])
     {
-        // I don't think you need to do this 
         try 
         {
             createBlockChain();
@@ -718,6 +744,7 @@ class BlockChain
         catch (Exception x){};
     }
 
+    // this is necessary when the head is created as a copy after the network communication, this function resets the head in the right place
     public void updateHead() 
     {
         Block curr = tail;
@@ -737,6 +764,7 @@ class BlockChain
 
     }
     
+    // send block chain in the JSON format
     public void sendBlockChain() throws Exception 
     {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -793,6 +821,7 @@ class BlockChain
         return 0;
     }
 
+    // prints whole blockChain by traversing from tail
     public void printBlockChain()
     {
         Block curr = tail;
@@ -809,7 +838,8 @@ class BlockChain
     }
 }
 
-public class Blockchain { // the other one is BlockChain <- capitalized!!!
+public class Blockchain // the other one is BlockChain <- capitalized!!!
+{
     public static int pnum;
     private static String FILENAME;
 
@@ -828,6 +858,7 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
 
     public void ListExample(String argv[]) throws Exception
     {
+        // basically copying from bc.java getting the process number
         if (argv.length > 2) System.out.println("Special functionality present\n");
 
         if (argv.length < 1) pnum = 0;
@@ -851,10 +882,12 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
             System.out.println("PROCESS TWO");
         }
 
+        // creating the receiving servers first
         new Thread(new UnverifiedBlockReceivingServer()).start();
         new Thread(new BlockChainReceivingServer()).start();
         new Thread(new publicKeyReceivingServer()).start();
 
+        // sends the public keys to each process
         try {
             PublicKeySender publicKeySender = new PublicKeySender(pnum); 
             if(pnum != 2)
@@ -868,9 +901,11 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
             publicKeySender.run();
         } catch (Exception e) {}
         
-        Ports.blockChain = new BlockChain(argv);
+        // sends the block chain with genesis block in it
+        Ports.blockChain = new BlockChain(argv); // im doing this to avoid null pointer exception
         if(pnum == 0)
         {
+            // process 0 sends the blockChain with genesis block in it
             Ports.blockChain.run(argv);
         }
         
@@ -880,8 +915,10 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
             default: FILENAME= "BlockInput0.txt"; break;
         }
 
+        // blockVerifier starts and waits for the priority queue to be filled
         new Thread(new BlockVerifier()).start();
 
+        // sends all the unverified blocks read from files from each process
         Block curr;
         Date date;
         String T1;
@@ -902,9 +939,10 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
         } catch (Exception e) {e.printStackTrace();}
     }
 
+    // sign the block and send it over the network in a JSON format
     public void sendUnverifiedBlock(Block block) throws Exception 
     {
-        signBlock(block);
+        signBlock(block); // signs the block here
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         String json = gson.toJson(block);
         
@@ -929,6 +967,7 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
         }
     }
 
+    // signs the block with this function
     public void signBlock(Block block) throws Exception
     {
         String raw = "Process" + pnum;
