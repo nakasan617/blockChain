@@ -167,6 +167,7 @@ class UnverifiedBlockReceivingWorker extends Thread
                 {
                     // when it is verified add it to the priority queue
                     priorityQueue.add(block);
+                    System.out.println("verification completed: " + block.br.data);
                 }
                 else 
                 {
@@ -524,7 +525,6 @@ class PublicKeySender
 
         for(int i = 0; i < Ports.numProcesses; i++)
         {
-            //System.out.println("From Process " + pnum + " to " + i);
             try {
                 sock = new Socket(Ports.serverName, Ports.publicKeyPortBase + i); 
                 toServer = new PrintStream(sock.getOutputStream());
