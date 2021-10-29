@@ -102,12 +102,36 @@ class UnverifiedBlockReceivingWorker extends Thread
             sock.close();
             Block block = new Gson().fromJson(stringBlock, Block.class); 
             // verifying the block here 
-            priorityQueue.add(block);
+            while(Ports.publicKeys[Blockchain.pnum] == null)
+            {
+                System.out.println("publicKeys[" + Blockchain.pnum + "] is null: sleeping");
+                try {Thread.sleep(1000);} catch (Exception e) {}
+            }
+            try {
+                boolean rv = verifySig(pnum.getBytes(), Ports.publicKeys[Blockchain.pnum], block.br.Signature);
+                if(rv == true)
+                {
+                    priorityQueue.add(block);
+                }
+                else 
+                {
+                    System.out.println("verification for the unverified block failed");
+                } 
+                block.br.Signature = null;
+            } catch (Exception x) {x.printStackTrace();}
             //System.out.println("received: " + stringBlock);
             //System.out.println("stringBlockChain: " + blockChain);
             //checkBlockChainReception(blockChain);             
         } catch (IOException x) {x.printStackTrace();}
 
+    }
+
+    public static boolean verifySig(byte[] data, PublicKey key, byte[] sig) throws Exception
+    {
+        Signature signer = Signature.getInstance("SHA1withRSA");
+        signer.initVerify(key);
+        signer.update(data);
+        return signer.verify(sig);
     }
 
 }
@@ -259,12 +283,6 @@ class BlockVerifier implements Runnable
                 Thread.sleep(1000);
             }
         }catch(Exception ex) {ex.printStackTrace();}
-        /*
-        if( Ports.blockChainUpdated > 0)
-        {
-            System.out.println("blockChainUpdated: " + Ports.blockChainUpdated + "\n So quitting...");
-        }
-        */
 
     }
 }
@@ -295,9 +313,6 @@ class BlockChainReceivingWorker extends Thread
             {
                 Ports.blockChain = blockChain;
                 Ports.blockChain.updateHead();
-                //System.out.println("blockChain updated:");
-                //Ports.blockChainUpdated++;
-                //Ports.blockChain.printBlockChain();
 
             }
             //System.out.println("stringBlockChain: " + blockChain);
@@ -414,7 +429,7 @@ class PublicKeySender
     {
        
         KeyPair keyPair = generateKeyPair(999);
-        privateKey = keyPair.getPrivate();
+        Ports.privateKey = keyPair.getPrivate();
         publicKey = keyPair.getPublic();
 
         pnum = _pnum;
