@@ -42,7 +42,7 @@ class Ports
     public static int publicKeyPortBase = 4710;
     public static int unverifiedBlockPortBase = 4820;
     public static int blockChainPortBase = 4930;
-    public static int blockChainUpdated = 0;
+    //public static int blockChainUpdated = 0;
     public static boolean applicationReady = false;
     public static boolean JSONWritten = false;
 
@@ -92,7 +92,7 @@ class UnverifiedBlockReceivingWorker extends Thread
         try 
         {
             BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-            //String pnum = in.readLine();
+            String pnum = in.readLine();
             line = in.readLine();
             while (line != null)
             {
@@ -101,6 +101,7 @@ class UnverifiedBlockReceivingWorker extends Thread
             }
             sock.close();
             Block block = new Gson().fromJson(stringBlock, Block.class); 
+            // verifying the block here 
             priorityQueue.add(block);
             //System.out.println("received: " + stringBlock);
             //System.out.println("stringBlockChain: " + blockChain);
@@ -143,6 +144,13 @@ class BlockVerifier implements Runnable
             {
                 // pop and write the data here
                 curr = Ports.ourPriorityQueue.poll();
+                if (isIncluded(curr.br) == true)
+                {
+                    //assert Ports.blockChainUpdated > 0;
+                    //Ports.blockChainUpdated--;
+                    System.out.println("already included in blockChain: " + curr.br.data);
+                    continue;
+                }
                 //System.out.println("block received: ");
                 while(Ports.blockChain.getHead() == null)
                 {
@@ -156,15 +164,8 @@ class BlockVerifier implements Runnable
                 } catch (Exception e) {
                     System.out.println("exception caught in dowork");
                 }
-                /*
-                System.out.println("data -> " + curr.br.data);
-                System.out.println("previous hash -> " + curr.br.PreviousHash);
-                System.out.println("random seed -> " + curr.br.RandomSeed);
-                System.out.println("winning hash -> " + curr.br.WinningHash);
-                System.out.println("timestamp -> " + curr.br.TimeStampString);
-                */
 
-                if(Ports.blockChainUpdated == 0)
+                if(isIncluded(curr.br) == false)
                 {
                     Ports.blockChain.appendBlock(curr);
                     try {
@@ -173,26 +174,31 @@ class BlockVerifier implements Runnable
                         System.out.println("send blockChain failed");
                     }
                 }
-                else if(Ports.blockChainUpdated == 1)
-                {
-                    Ports.blockChainUpdated--;
-                }
-                else if(Ports.blockChainUpdated > 1)
-                {
-                    while(Ports.blockChainUpdated > 1)
-                    {
-                        Ports.blockChainUpdated--;
-                        Ports.ourPriorityQueue.poll();
-                    }
-                    Ports.blockChainUpdated--;
-                }
                 else
                 {
-                    System.out.println("you should not come here");
+                    System.out.println(curr.br.data + ": someone else solved it already");
                 }
+
             }
         }
     }
+
+    public static boolean isIncluded(BlockRecord br) 
+    {
+        Block curr = Ports.blockChain.getTail();
+        //System.out.println("block: " + block.br.getBlockID() + block.br.data);
+        while(curr != null)
+        {
+            //System.out.println("curr: " + curr.br.getBlockID());
+            if(br.getBlockID().equals(curr.br.getBlockID()))
+            {
+                return true;
+            }
+            curr = curr.next;
+        }
+        return false;
+    }
+    
     public static String ByteArrayToString(byte[] ba){
         StringBuilder hex = new StringBuilder(ba.length * 2);
         for(int i=0; i < ba.length; i++){
@@ -229,7 +235,8 @@ class BlockVerifier implements Runnable
 
         try {
 
-            while(Ports.blockChainUpdated == 0){ // Limit how long we try for this example.
+            //while(Ports.blockChainUpdated == 0){ // Limit how long we try for this example.
+            while(isIncluded(br) == false) {
 
                 randString = randomAlphaNumeric(8); 
                 concatString = stringIn + randString; 
@@ -240,7 +247,7 @@ class BlockVerifier implements Runnable
 
                 workNumber = Integer.parseInt(stringOut.substring(0,4),16); 
 
-                if (workNumber < 5000){
+                if (workNumber < 10000){
                     //System.out.format("%d IS less than 20,000 so puzzle solved!\n", workNumber);
                     System.out.println("Puzzle solved for " + br.data);
                     //System.out.println("The seed (puzzle answer) was: " + randString);
@@ -252,10 +259,12 @@ class BlockVerifier implements Runnable
                 Thread.sleep(1000);
             }
         }catch(Exception ex) {ex.printStackTrace();}
+        /*
         if( Ports.blockChainUpdated > 0)
         {
             System.out.println("blockChainUpdated: " + Ports.blockChainUpdated + "\n So quitting...");
         }
+        */
 
     }
 }
@@ -287,7 +296,7 @@ class BlockChainReceivingWorker extends Thread
                 Ports.blockChain = blockChain;
                 Ports.blockChain.updateHead();
                 //System.out.println("blockChain updated:");
-                Ports.blockChainUpdated++;
+                //Ports.blockChainUpdated++;
                 //Ports.blockChain.printBlockChain();
 
             }
@@ -324,8 +333,9 @@ class BlockChainReceivingServer implements Runnable
     {
         int q_len = 6;
         Socket sock;
-        //System.out.println("BlockChain Receiving Server has started");
+        System.out.println("BlockChain Receiving Server has started");
         //System.out.println("ready to listen at Port " + Ports.blockChainPort);
+
         try {
             ServerSocket servsock = new ServerSocket(Ports.blockChainPort, q_len);
             while(true)
@@ -354,7 +364,7 @@ class publicKeyReceivingWorker extends Thread
             {
                 Ports.applicationReady = true;
             }
-            System.out.println("from Process " + pnum + ":\n" + StringKey);
+            //System.out.println("from Process " + pnum + ":\n" + StringKey);
             try {
                 Ports.publicKeys[Integer.parseInt(pnum)] = RestoreKey(StringKey);
             } catch (Exception x) {x.printStackTrace();}
@@ -455,13 +465,14 @@ class PublicKeySender
 
 
 class BlockRecord{
-  //String BlockID;
+  String BlockID;
   public String data;
   public String PreviousHash; 
   public String RandomSeed; 
   public String WinningHash;
   UUID uuid; // Just to show how JSON marshals this binary data.
   public String TimeStampString;
+  public byte[] Signature;
 
   public BlockRecord(String _data, String ph)
   {
@@ -473,12 +484,13 @@ class BlockRecord{
       Date date = new Date();
       TimeStampString = String.format("%1$s %2$tF.%2$tT", "", date);
       uuid = UUID.randomUUID();
+      BlockID = new String(uuid.toString());
       //System.out.println("data: " + data);
   }
 
 
-  //public String getBlockID() {return BlockID;}
-  //public void setBlockID(String BID){this.BlockID = BID;}
+  public String getBlockID() {return BlockID;}
+  public void setBlockID(String BID){this.BlockID = BID;}
 
   public String getPreviousHash() {return this.PreviousHash;}
   public void setPreviousHash (String PH){this.PreviousHash = PH;}
@@ -588,7 +600,8 @@ class Block {
 
         try {
 
-            while(Ports.blockChainUpdated == 0){ 
+            //while(Ports.blockChainUpdated == 0){ 
+            while(true) {
                 randString = randomAlphaNumeric(8); 
                 concatString = stringIn + randString; 
                 MessageDigest MD = MessageDigest.getInstance("SHA-256");
@@ -598,7 +611,7 @@ class Block {
 
                 workNumber = Integer.parseInt(stringOut.substring(0,4),16); 
 
-                if (workNumber < 5000){
+                if (workNumber < 10000){
                     //System.out.format("%d IS less than 20,000 so puzzle solved!\n", workNumber);
                     //System.out.println("The seed (puzzle answer) was: " + randString);
                     br.RandomSeed = randString;
@@ -633,17 +646,18 @@ class BlockChain
     {
         return count;
     }
+    public Block getTail()
+    {
+        return tail;
+    }
 
     public void run(String argv[])
     {
         // I don't think you need to do this 
         try 
         {
-            if(Blockchain.pnum == 0)
-            {
-                createBlockChain();
-                sendBlockChain();
-            }
+            createBlockChain();
+            sendBlockChain();
         } 
         catch (Exception x){};
     }
@@ -799,7 +813,10 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
         } catch (Exception e) {}
         
         Ports.blockChain = new BlockChain(argv);
-        Ports.blockChain.run(argv);
+        if(pnum == 0)
+        {
+            Ports.blockChain.run(argv);
+        }
         
         switch(pnum){
             case 1: FILENAME = "BlockInput1.txt"; break;
@@ -831,6 +848,7 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
 
     public void sendUnverifiedBlock(Block block) throws Exception 
     {
+        signBlock(block);
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         String json = gson.toJson(block);
         
@@ -844,6 +862,7 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
             try {
                 sock = new Socket(Ports.serverName, Ports.unverifiedBlockPortBase + i);
                 toServer = new PrintStream(sock.getOutputStream());
+                toServer.println("Process" + pnum);
                 toServer.println(json);
                 toServer.flush();
                 sock.close();
@@ -852,6 +871,15 @@ public class Blockchain { // the other one is BlockChain <- capitalized!!!
                 System.out.println("unverifiedBlock sending failed to Process " + i);
             }
         }
+    }
+
+    public void signBlock(Block block) throws Exception
+    {
+        String raw = "Process" + pnum;
+        Signature signer = Signature.getInstance("SHA1withRSA");
+        signer.initSign(Ports.privateKey);
+        signer.update(raw.getBytes());
+        block.br.Signature = signer.sign(); 
     }
 
 }
