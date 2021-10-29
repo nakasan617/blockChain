@@ -1,3 +1,45 @@
+/*
+
+Below is from bc.java
+   
+http://www.javacodex.com/Concurrency/PriorityBlockingQueue-Example
+
+-----------------------------------------------------------------------------
+Below is from WorkB.java
+The web sources:
+
+https://www.quickprogrammingtips.com/java/how-to-generate-sha256-hash-in-java.html  @author JJ
+https://dzone.com/articles/generate-random-alpha-numeric  by Kunal Bhatia  ·  Aug. 09, 12 · Java Zone
+-----------------------------------------------------------------------------
+Below is from BlockJ.java
+The web sources:
+
+https://mkyong.com/java/how-to-parse-json-with-gson/
+http://www.java2s.com/Code/Java/Security/SignatureSignAndVerify.htm
+https://www.mkyong.com/java/java-digital-signatures-example/ (not so clear)
+https://javadigest.wordpress.com/2012/08/26/rsa-encryption-example/
+https://www.programcreek.com/java-api-examples/index.php?api=java.security.SecureRandom
+https://www.mkyong.com/java/java-sha-hashing-example/
+https://stackoverflow.com/questions/19818550/java-retrieve-the-actual-value-of-the-public-key-from-the-keypair-object
+https://www.java67.com/2014/10/how-to-pad-numbers-with-leading-zeroes-in-Java-example.html
+
+One version of the JSON jar file here:
+https://repo1.maven.org/maven2/com/google/code/gson/gson/2.8.2/
+
+-----------------------------------------------------------------------------
+Below is from BlockInputG.java
+The web sources:
+
+Reading lines and tokens from a file:
+http://www.fredosaurus.com/notes-java/data/strings/96string_examples/example_stringToArray.html
+Good explanation of linked lists:
+https://beginnersbook.com/2013/12/linkedlist-in-java-with-example/
+Priority queue:
+https://www.javacodegeeks.com/2013/07/java-priority-queue-priorityqueue-example.html
+
+*/
+
+
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
@@ -42,7 +84,6 @@ class Ports
     public static int publicKeyPortBase = 4710;
     public static int unverifiedBlockPortBase = 4820;
     public static int blockChainPortBase = 4930;
-    //public static int blockChainUpdated = 0;
     public static boolean applicationReady = false;
     public static boolean JSONWritten = false;
 
