@@ -1,0 +1,34 @@
+// I will add a comment in the comment like this
+PROCESS ZERO // process number
+unverifiedBlock Receiving Server has started 
+BlockChain Receiving Server has started
+Public Key Receiving Server has started
+not ready yet, going to sleep
+not ready yet, going to sleep
+publicKeyReceivingServer exitting //public key receiving server exits after receiving three keys
+verification completed: Helen Keller 1880.06.27 666-45-6789 Arthritis WarmCloths Aspirin // the process verifies unverified block's signature in this statement
+verification completed: Rita Vita  1992.01.31 999-456-789 ObessivePersonality TryToRelax Ibuprofen
+verification completed: Abraham Lincoln 1809.02.12 444-45-6888 GreviousWound Surgery Whiskey
+verification completed: Wei  Xu  1996.03.22 123-456-333 Shingles WaitForRelief Zovirax
+block verifier has started // this is the one that solves puzzle
+verification completed: John Kennedy 1917.05.29  333-45-6999 AddisonsDisease DrugTherapy Steroids
+verification completed: Sally McCutty 1970.01.01 123-456-999 Migraine IcePack Almotriptan
+verification completed: John Smith 1996.03.07 123-45-6789 Chickenpox BedRest aspirin
+verification completed: Joe DiMaggio 1914.11.25  111-22-3333 SoreKnees RestFromSports Aspirin
+verification completed: Bruce Lee 1940.11.27 456-789-123 SoreStomach LessCombat Vicodine
+Puzzle solved for Rita Vita  1992.01.31 999-456-789 ObessivePersonality TryToRelax Ibuprofen // puzzle solved here
+verification completed: Joe  Blow  1996.03.07 123-45-6888 Smallpox BedRest Whiskey
+verification completed: Julie Wilson 1996.03.07 123-45-6999 Insomnia Exercise HotPeppers
+verification completed: Wayne Blaine 1942.07.07 123-45-6777 Measles WaitToGetBetter CodLiverOil 
+Helen Keller 1880.06.27 666-45-6789 Arthritis WarmCloths Aspirin: someone else solved it already // tried to solved for the next block, but someone else solved it already
+Puzzle solved for Wei  Xu  1996.03.22 123-456-333 Shingles WaitForRelief Zovirax
+Puzzle solved for Abraham Lincoln 1809.02.12 444-45-6888 GreviousWound Surgery Whiskey
+Puzzle solved for Sally McCutty 1970.01.01 123-456-999 Migraine IcePack Almotriptan
+Puzzle solved for John Kennedy 1917.05.29  333-45-6999 AddisonsDisease DrugTherapy Steroids
+John Smith 1996.03.07 123-45-6789 Chickenpox BedRest aspirin: someone else solved it already
+Puzzle solved for Bruce Lee 1940.11.27 456-789-123 SoreStomach LessCombat Vicodine
+Puzzle solved for Joe DiMaggio 1914.11.25  111-22-3333 SoreKnees RestFromSports Aspirin
+Puzzle solved for Joe  Blow  1996.03.07 123-45-6888 Smallpox BedRest Whiskey
+Puzzle solved for Julie Wilson 1996.03.07 123-45-6999 Insomnia Exercise HotPeppers
+Puzzle solved for Wayne Blaine 1942.07.07 123-45-6777 Measles WaitToGetBetter CodLiverOil 
+writing BlockchainLedger.json // after getting the last block writes to the file
